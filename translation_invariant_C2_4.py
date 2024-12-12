@@ -69,9 +69,12 @@ def main():
 
     if args.derangement:
         # Derangement
-        m.addConstrs(
-            w[i,i] == 0 for i in range(n)
-        )
+        # m.addConstrs(
+        #     w[i,i] == 0 for i in range(n)
+        # )
+
+        # Impose f(0) = 1
+        m.addConstr(w[0, 1] == 1)
 
     # Add the constraint for equation 677:
     # For every x, y, a, b, c in {0, ..., n-1},
@@ -108,8 +111,8 @@ def main():
     # Update the model to ensure variables and constraints are integrated
     m.update()
 
-    m.setParam('PoolSearchMode', 2)
-    m.setParam('PoolSolutions', 100)
+    # m.setParam('PoolSearchMode', 2)
+    # m.setParam('PoolSolutions', 100)
 
     # (Optional) Optimize the model
     m.optimize()
