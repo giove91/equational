@@ -4,52 +4,49 @@ import ast
 from gurobipy import Model, GRB
 
 
-def compute_inverse_product(multiplication_table, x, y):
+# def int_to_bit_tuple(n):
+#     # Ensure the input is between 0 and 15
+#     if not (0 <= n <= 15):
+#         raise ValueError("Input must be an integer between 0 and 15 inclusive.")
+#     return tuple(reversed(((n >> 3) & 1, (n >> 2) & 1, (n >> 1) & 1, n & 1)))
+
+
+def compute_inverse_product(x, y):
     """
     Compute x^{-1}y using the multiplication table of a group.
 
-    :param multiplication_table: List of lists representing the group's multiplication table.
     :param x: First element (0-based indexing).
     :param y: Second element (0-based indexing).
     :return: Index of the result (0-based indexing).
     """
-    # Find x^{-1}: the element z such that multiplication_table[x-1][z-1] == 1
-    inverse_x = None
-    for z in range(len(multiplication_table)):
-        if multiplication_table[x][z] == 1:
-            inverse_x = z
-            break
-
-    if inverse_x is None:
-        raise ValueError(f"Could not find the inverse of element {x} in the group.")
-
-    # Compute x^{-1}y
-    result = multiplication_table[inverse_x][y] - 1
-
-    return result
+    return x ^ y
+    # int_to_bit_tuple(x)
+    #
+    # # Find x^{-1}: the element z such that multiplication_table[x-1][z-1] == 1
+    # inverse_x = None
+    # for z in range(len(multiplication_table)):
+    #     if multiplication_table[x][z] == 1:
+    #         inverse_x = z
+    #         break
+    #
+    # if inverse_x is None:
+    #     raise ValueError(f"Could not find the inverse of element {x} in the group.")
+    #
+    # # Compute x^{-1}y
+    # result = multiplication_table[inverse_x][y] - 1
+    #
+    # return result
 
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('n', type=int)
-    parser.add_argument('group_id', type=int)
     parser.add_argument('-d', '--derangement', action='store_true')
 
     args = parser.parse_args()
 
     # Set the dimension size
-    n = args.n
-
-    # Load group
-    group = gap.SmallGroup(args.n, args.group_id)
-    multiplication_table = ast.literal_eval(gap.eval(f"MultiplicationTable({group.name()})"))
-
-    print('Underlying group:', args.n, args.group_id, gap.eval(f"StructureDescription({group.name()})"))
-    print('Multiplication table:')
-    for row in multiplication_table:
-        print([x-1 for x in row])
-    print()
+    n = 16
 
     # Create a new model
     m = Model("Equation677_translation_invariant")
@@ -90,8 +87,8 @@ def main():
         """
         # return w[(jj-ii) % n, (kk-ii) % n]
         return w[
-            compute_inverse_product(multiplication_table, ii, jj),
-            compute_inverse_product(multiplication_table, ii, kk)
+            compute_inverse_product(ii, jj),
+            compute_inverse_product(ii, kk)
         ]
 
     for x in range(n):
@@ -111,8 +108,13 @@ def main():
     # Update the model to ensure variables and constraints are integrated
     m.update()
 
+    m.setParam('PoolSearchMode', 2)
+    m.setParam('PoolSolutions', 100)
+
     # (Optional) Optimize the model
     m.optimize()
+
+    print(f'Number of solutions: {m.SolCount}')
 
     # Print the solution (if feasible)
     if m.status == GRB.OPTIMAL:
