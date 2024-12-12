@@ -73,7 +73,7 @@ def main():
         #     w[i,i] == 0 for i in range(n)
         # )
 
-        # Impose f(0) = 1
+        # Impose f(0) = 1 (no solutions)
         m.addConstr(w[0, 1] == 1)
 
     # Add the constraint for equation 677:
