@@ -20,28 +20,96 @@ def compute_inverse_product(x, y):
     :return: Index of the result (0-based indexing).
     """
     return x ^ y
-    # int_to_bit_tuple(x)
-    #
-    # # Find x^{-1}: the element z such that multiplication_table[x-1][z-1] == 1
-    # inverse_x = None
-    # for z in range(len(multiplication_table)):
-    #     if multiplication_table[x][z] == 1:
-    #         inverse_x = z
-    #         break
-    #
-    # if inverse_x is None:
-    #     raise ValueError(f"Could not find the inverse of element {x} in the group.")
-    #
-    # # Compute x^{-1}y
-    # result = multiplication_table[inverse_x][y] - 1
-    #
-    # return result
 
+
+def construct_L_y(diamond_table, y):
+    return diamond_table[y]
+
+
+def compose_permutations(perm1, perm2):
+    """
+    Compose two permutations.
+
+    :param perm1: List[int], the first permutation
+    :param perm2: List[int], the second permutation
+    :return: List[int], the composed permutation
+    """
+    n = len(perm1)
+    return [perm1[perm2[i]] for i in range(n)]
+
+
+def inverse_permutation(perm):
+    """
+    Compute the inverse of a given permutation with a validity check.
+
+    :param perm: List[int], the permutation to invert (a list of size n where each number in {0, ..., n-1} appears exactly once)
+    :return: List[int], the inverse permutation
+    :raises ValueError: If the input is not a valid permutation
+    """
+    n = len(perm)
+
+    # Check if the input is a valid permutation
+    if sorted(perm) != list(range(n)):
+        raise ValueError("The input is not a valid permutation.")
+
+    # Compute the inverse
+    inv = [0] * n
+    for i in range(n):
+        inv[perm[i]] = i
+    return inv
+
+
+def check_pairwise_commutativity(operators):
+    """
+    Check if all operators pairwise commute.
+
+    :param operators: List[List[int]], a list of permutations (operators)
+    :return: bool, True if all operators commute, False otherwise
+    """
+    n = len(operators)
+    for i in range(n):
+        for j in range(i + 1, n):
+            # Compose operators in both orders
+            L1_L2 = compose_permutations(operators[i], operators[j])
+            L2_L1 = compose_permutations(operators[j], operators[i])
+            # Check if they are equal
+            if L1_L2 != L2_L1:
+                print(f"Operators at index {i} and {j} do not commute.")
+                return False
+    return True
+
+
+def check_linear(diamond_table):
+    """
+    Linearity test by Terence Tao:
+        One consequence of linearity is that the operators LyLy′−1, being translations,
+        commute with each other and with the RxRx′−1 (assuming right invertibility in the latter case).
+        So this may be one test to verify if a given magma is linear or not.
+    """
+    n = len(diamond_table)
+    operators = []
+    for y1 in range(n):
+        for y2 in range(n):
+            operators.append(
+                compose_permutations(
+                    construct_L_y(diamond_table, y1),
+                    inverse_permutation(construct_L_y(diamond_table, y2)),
+                )
+            )
+
+    operators = list(set(tuple(op) for op in operators))
+
+    print(len(operators))
+    for operator in operators:
+        print(operator)
+
+    return check_pairwise_commutativity(operators)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--derangement', action='store_true')
+    parser.add_argument('-s', '--num_solutions', type=int, default=None)
 
     args = parser.parse_args()
 
@@ -73,7 +141,7 @@ def main():
         #     w[i,i] == 0 for i in range(n)
         # )
 
-        # Impose f(0) = 1 (no solutions)
+        # Impose f(0) = 1 (still no solutions, even if weaker)
         m.addConstr(w[0, 1] == 1)
 
     # Add the constraint for equation 677:
@@ -111,8 +179,9 @@ def main():
     # Update the model to ensure variables and constraints are integrated
     m.update()
 
-    # m.setParam('PoolSearchMode', 2)
-    # m.setParam('PoolSolutions', 100)
+    if args.num_solutions is not None:
+        m.setParam('PoolSearchMode', 2)
+        m.setParam('PoolSolutions', args.num_solutions)
 
     # (Optional) Optimize the model
     m.optimize()
@@ -143,6 +212,13 @@ def main():
                     print(f'f({i}) = {j}')
 
                 # print(f'w[{i}, {j}] = {w[i, j].X}')
+
+        print(f'Linear check: {check_linear(diamond_table)}')
+
+        # # Go through all solutions
+        # for i in range(m.SolCount):
+        #     m.setParam(GRB.Param.SolutionNumber, i)
+        #     print(f'Solution #{i}')
 
 
 if __name__ == '__main__':
